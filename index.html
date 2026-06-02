@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8">
+  <title>2v2 Chess</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>2v2 Chess</h1>
+  <p id="turnText">Turn: White1</p>
+
+  <div id="timers">
+    <div>White Time: <span id="whiteTimer">10:00</span></div>
+    <div>Black Time: <span id="blackTimer">10:00</span></div>
+  </div>
+
+  <button id="restartBtn">Restart Game</button>
+
+  <div class="game-container">
+    <div id="board"></div>
+
+    <div id="historyBox">
+      <h2>Move History</h2>
+      <ol id="moveHistory"></ol>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
