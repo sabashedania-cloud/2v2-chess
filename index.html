@@ -3,37 +3,64 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>2v2 Chess Online</title>
+  <title>2v2 Chess Multiplayer</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <h1>2v2 Chess Online</h1>
+  <h1>2v2 Chess</h1>
 
-  <div id="onlineBox">
-    <button id="createRoomBtn">Create Room</button>
-    <input id="roomCodeInput" placeholder="Room Code">
-    <button id="joinRoomBtn">Join Room</button>
-    <div id="roomInfo">Room: not connected</div>
-    <div id="playerInfo">You are: not joined</div>
-    <div id="playersInfo">Players: 0/4</div>
+  <div id="joinScreen" class="panel">
+    <h2>ოთახში შესვლა</h2>
+
+    <label>Room Code</label>
+    <input id="roomInput" type="text" placeholder="მაგ: saba123">
+
+    <label>აირჩიე მოთამაშე</label>
+    <select id="playerSelect">
+      <option value="White1">White1</option>
+      <option value="Black1">Black1</option>
+      <option value="White2">White2</option>
+      <option value="Black2">Black2</option>
+    </select>
+
+    <button id="joinBtn">Join Room</button>
+
+    <p class="small-text">
+      4 მოთამაშე უნდა შევიდეს ერთსა და იმავე Room Code-ით, მაგრამ სხვადასხვა სახელით.
+    </p>
   </div>
 
-  <p id="turnText">Turn: White1</p>
+  <div id="gameScreen" class="hidden">
+    <div id="topInfo">
+      <p id="roomText">Room: -</p>
+      <p id="playerText">You are: -</p>
+      <p id="turnText">Turn: White1</p>
+    </div>
 
-  <div id="timers">
-    <div>White Time: <span id="whiteTimer">10:00</span></div>
-    <div>Black Time: <span id="blackTimer">10:00</span></div>
-  </div>
+    <div id="playersBox">
+      <div id="White1Status">White1: empty</div>
+      <div id="Black1Status">Black1: empty</div>
+      <div id="White2Status">White2: empty</div>
+      <div id="Black2Status">Black2: empty</div>
+    </div>
 
-  <button id="restartBtn">Restart Game</button>
+    <div id="timers">
+      <div class="timer-card">White Time: <span id="whiteTimer">10:00</span></div>
+      <div class="timer-card">Black Time: <span id="blackTimer">10:00</span></div>
+    </div>
 
-  <div class="game-container">
-    <div id="board"></div>
+    <button id="restartBtn">Restart Room Game</button>
 
-    <div id="historyBox">
-      <h2>Move History</h2>
-      <ol id="moveHistory"></ol>
+    <div class="game-container">
+      <div class="board-wrap">
+        <div id="board"></div>
+      </div>
+
+      <div id="historyBox">
+        <h2>Move History</h2>
+        <ol id="moveHistory"></ol>
+      </div>
     </div>
   </div>
 
