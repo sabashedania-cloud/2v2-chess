@@ -8,18 +8,13 @@ import {
   get
 } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
 
-/*
-  IMPORTANT:
-  ეს არის შენი Firebase config.
-  თუ Firebase Console-ში სხვა config გაჩვენა, შეცვალე მხოლოდ ეს ნაწილი.
-*/
 const firebaseConfig = {
   apiKey: "AIzaSyCgIujywiokMzJrY_ZWMESozxRxwrMocGI",
   authDomain: "v2-chess-fdc1a.firebaseapp.com",
   projectId: "v2-chess-fdc1a",
   storageBucket: "v2-chess-fdc1a.firebasestorage.app",
-  messagingSenderId: "REPLACE_IF_NEEDED",
-  appId: "REPLACE_IF_NEEDED",
+  messagingSenderId: "904445661963",
+  appId: "1:904445661963:web:bfa49b4766a8f4a4e6080e",
   databaseURL: "https://v2-chess-fdc1a-default-rtdb.firebaseio.com"
 };
 
@@ -28,6 +23,7 @@ const db = getDatabase(app);
 
 const joinScreen = document.getElementById("joinScreen");
 const gameScreen = document.getElementById("gameScreen");
+const nameInput = document.getElementById("nameInput");
 const roomInput = document.getElementById("roomInput");
 const playerSelect = document.getElementById("playerSelect");
 const joinBtn = document.getElementById("joinBtn");
@@ -41,6 +37,11 @@ const blackTimerEl = document.getElementById("blackTimer");
 const roomText = document.getElementById("roomText");
 const playerText = document.getElementById("playerText");
 
+const gameOverOverlay = document.getElementById("gameOverOverlay");
+const gameOverTitle = document.getElementById("gameOverTitle");
+const gameOverMessage = document.getElementById("gameOverMessage");
+const closeGameOverBtn = document.getElementById("closeGameOverBtn");
+
 const playerStatusEls = {
   White1: document.getElementById("White1Status"),
   Black1: document.getElementById("Black1Status"),
@@ -50,8 +51,10 @@ const playerStatusEls = {
 
 let roomCode = "";
 let myPlayer = "";
+let myName = "";
 let roomRef = null;
 let localUpdatingFromFirebase = false;
+let lastGameOverText = "";
 
 let selectedPiece = null;
 let selectedRow = null;
@@ -60,6 +63,7 @@ let selectedCol = null;
 let currentTurn = "White1";
 const turnOrder = ["White1", "Black1", "White2", "Black2"];
 let gameOver = false;
+let winnerText = "";
 
 let pieces = [];
 let moves = [];
@@ -85,11 +89,40 @@ const startingPieces = [
 
 const files = ["a","b","c","d","e","f","g","h"];
 
+function createEmptyPlayers() {
+  return {
+    White1: { joined: false, name: "" },
+    Black1: { joined: false, name: "" },
+    White2: { joined: false, name: "" },
+    Black2: { joined: false, name: "" }
+  };
+}
+
+function normalizePlayers(players = {}) {
+  const normalized = createEmptyPlayers();
+
+  for (const player of turnOrder) {
+    const value = players[player];
+
+    if (value === true) {
+      normalized[player] = { joined: true, name: player };
+    } else if (value && typeof value === "object") {
+      normalized[player] = {
+        joined: Boolean(value.joined),
+        name: value.name || player
+      };
+    }
+  }
+
+  return normalized;
+}
+
 function createNewGameState() {
   return {
     pieces: startingPieces.map(row => [...row]),
     currentTurn: "White1",
     gameOver: false,
+    winnerText: "",
     waitingPromotion: false,
     moves: [],
     enPassantTarget: null,
@@ -104,27 +137,30 @@ function createNewGameState() {
       blackLeftRookMoved: false,
       blackRightRookMoved: false
     },
-    players: {
-      White1: false,
-      Black1: false,
-      White2: false,
-      Black2: false
-    }
+    players: createEmptyPlayers()
   };
 }
 
 joinBtn.addEventListener("click", joinRoom);
+closeGameOverBtn.addEventListener("click", () => gameOverOverlay.classList.add("hidden"));
 
 async function joinRoom() {
   const code = roomInput.value.trim();
+  const typedName = nameInput.value.trim();
+
+  if (typedName.length < 2) {
+    alert("Please enter your name.");
+    return;
+  }
 
   if (code.length < 3) {
-    alert("Room Code მინიმუმ 3 სიმბოლო უნდა იყოს.");
+    alert("Room Code must be at least 3 characters.");
     return;
   }
 
   roomCode = code;
   myPlayer = playerSelect.value;
+  myName = typedName;
   roomRef = ref(db, "rooms/" + roomCode);
 
   const snapshot = await get(roomRef);
@@ -135,21 +171,25 @@ async function joinRoom() {
 
   const freshSnapshot = await get(roomRef);
   const roomData = freshSnapshot.val();
+  const players = normalizePlayers(roomData.players);
 
-  if (roomData.players && roomData.players[myPlayer] === true) {
-    alert(myPlayer + " უკვე დაკავებულია. აირჩიე სხვა მოთამაშე.");
+  if (players[myPlayer] && players[myPlayer].joined === true) {
+    alert(myPlayer + " is already taken. Please choose another player.");
     return;
   }
 
   await update(roomRef, {
-    ["players/" + myPlayer]: true
+    ["players/" + myPlayer]: {
+      joined: true,
+      name: myName
+    }
   });
 
   joinScreen.classList.add("hidden");
   gameScreen.classList.remove("hidden");
 
   roomText.textContent = "Room: " + roomCode;
-  playerText.textContent = "You are: " + myPlayer;
+  playerText.textContent = "You are: " + myName + " (" + myPlayer + ")";
 
   listenRoom();
   startTimer();
@@ -165,6 +205,7 @@ function listenRoom() {
     pieces = data.pieces || startingPieces.map(row => [...row]);
     currentTurn = data.currentTurn || "White1";
     gameOver = data.gameOver || false;
+    winnerText = data.winnerText || "";
     waitingPromotion = data.waitingPromotion || false;
     moves = data.moves || [];
     castlingRights = data.castlingRights || createNewGameState().castlingRights;
@@ -173,10 +214,14 @@ function listenRoom() {
     blackTime = data.blackTime ?? 600;
     lastTimerUpdate = data.lastTimerUpdate || Date.now();
 
-    updatePlayerStatuses(data.players || {});
+    updatePlayerStatuses(normalizePlayers(data.players || {}));
     updateHistory();
     updateTimers();
     createBoard();
+
+    if (gameOver && winnerText) {
+      showGameOver(winnerText);
+    }
 
     localUpdatingFromFirebase = false;
   });
@@ -184,8 +229,10 @@ function listenRoom() {
 
 function updatePlayerStatuses(players) {
   for (const player of turnOrder) {
-    playerStatusEls[player].textContent = player + ": " + (players[player] ? "joined" : "empty");
-    playerStatusEls[player].className = players[player] ? "joined" : "";
+    const info = players[player];
+    const name = info.joined ? info.name : "empty";
+    playerStatusEls[player].textContent = player + ": " + name;
+    playerStatusEls[player].className = info.joined ? "joined" : "";
   }
 }
 
@@ -196,6 +243,7 @@ async function saveGameState(extra = {}) {
     pieces,
     currentTurn,
     gameOver,
+    winnerText,
     waitingPromotion,
     moves,
     castlingRights,
@@ -217,11 +265,6 @@ function startTimer() {
   timerInterval = setInterval(async () => {
     if (!roomRef) return;
     if (gameOver || waitingPromotion) return;
-
-    /*
-      Timer-ს აკლებს მხოლოდ ის მოთამაშე, ვისი სვლაც არის.
-      ასე ოთხ კომპიუტერზე დრო ოთხჯერ სწრაფად არ ჩამოვა.
-    */
     if (myPlayer !== currentTurn) return;
 
     if (currentTurn.includes("White")) {
@@ -229,16 +272,20 @@ function startTimer() {
       if (whiteTime <= 0) {
         whiteTime = 0;
         gameOver = true;
-        turnText.textContent = "BLACK WINS ON TIME!";
+        winnerText = "Black Team wins on time!";
+        turnText.textContent = winnerText;
         playSound("mate");
+        showGameOver(winnerText);
       }
     } else {
       blackTime--;
       if (blackTime <= 0) {
         blackTime = 0;
         gameOver = true;
-        turnText.textContent = "WHITE WINS ON TIME!";
+        winnerText = "White Team wins on time!";
+        turnText.textContent = winnerText;
         playSound("mate");
+        showGameOver(winnerText);
       }
     }
 
@@ -257,6 +304,15 @@ function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function showGameOver(message) {
+  if (lastGameOverText === message && !gameOverOverlay.classList.contains("hidden")) return;
+  lastGameOverText = message;
+
+  gameOverTitle.textContent = "Game Over";
+  gameOverMessage.textContent = message;
+  gameOverOverlay.classList.remove("hidden");
 }
 
 function playSound(type) {
@@ -307,11 +363,11 @@ function createBoard() {
   let text = "Turn: " + currentTurn;
 
   if (myPlayer !== currentTurn && !gameOver) {
-    text += " | დაელოდე შენს რიგს";
+    text += " | Waiting for your turn";
   }
 
   if (myPlayer === currentTurn && !gameOver) {
-    text += " | შენი სვლაა";
+    text += " | Your move";
   }
 
   if (!gameOver && !waitingPromotion) {
@@ -321,18 +377,24 @@ function createBoard() {
       gameOver = true;
 
       if (isKingInCheck(color)) {
-        const winner = color === "white" ? "BLACK" : "WHITE";
-        text = winner + " WINS BY CHECKMATE!";
+        const winner = color === "white" ? "Black Team" : "White Team";
+        winnerText = winner + " wins by checkmate!";
       } else {
-        text = "STALEMATE!";
+        winnerText = "Draw by stalemate!";
       }
 
+      text = winnerText;
       playSound("mate");
+      showGameOver(winnerText);
       saveGameState();
     } else {
       if (isKingInCheck("white")) text += " | White King is in CHECK!";
       if (isKingInCheck("black")) text += " | Black King is in CHECK!";
     }
+  }
+
+  if (gameOver && winnerText) {
+    text = winnerText;
   }
 
   turnText.textContent = text;
@@ -405,7 +467,7 @@ function handleClick(row, col) {
   if (gameOver || waitingPromotion) return;
 
   if (myPlayer !== currentTurn) {
-    alert("ახლა შენი რიგი არ არის.");
+    alert("It is not your turn yet.");
     return;
   }
 
@@ -544,7 +606,7 @@ function showPromotion(row, col, color, moveText) {
   box.id = "promotionBox";
 
   const title = document.createElement("div");
-  title.textContent = "აირჩიე ფიგურა";
+  title.textContent = "Choose promotion piece";
   title.style.marginBottom = "10px";
   box.appendChild(title);
 
@@ -900,10 +962,13 @@ restartBtn.addEventListener("click", async () => {
 
   const oldSnapshot = await get(roomRef);
   const oldData = oldSnapshot.val();
-  const oldPlayers = oldData?.players || createNewGameState().players;
+  const oldPlayers = normalizePlayers(oldData?.players || createEmptyPlayers());
 
   const newState = createNewGameState();
   newState.players = oldPlayers;
+
+  lastGameOverText = "";
+  gameOverOverlay.classList.add("hidden");
 
   await set(roomRef, newState);
 });
