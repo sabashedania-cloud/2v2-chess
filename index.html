@@ -2,12 +2,23 @@
 <html lang="ka">
 <head>
   <meta charset="UTF-8">
-  <title>2v2 Chess</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2v2 Chess Online</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <h1>2v2 Chess</h1>
+  <h1>2v2 Chess Online</h1>
+
+  <div id="onlineBox">
+    <button id="createRoomBtn">Create Room</button>
+    <input id="roomCodeInput" placeholder="Room Code">
+    <button id="joinRoomBtn">Join Room</button>
+    <div id="roomInfo">Room: not connected</div>
+    <div id="playerInfo">You are: not joined</div>
+    <div id="playersInfo">Players: 0/4</div>
+  </div>
+
   <p id="turnText">Turn: White1</p>
 
   <div id="timers">
@@ -26,6 +37,6 @@
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
