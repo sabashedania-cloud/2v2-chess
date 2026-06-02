@@ -12,6 +12,42 @@ h1 {
   margin-bottom: 8px;
 }
 
+#onlineBox {
+  max-width: 720px;
+  margin: 10px auto 12px;
+  padding: 12px;
+  background: #111;
+  border: 2px solid white;
+  border-radius: 12px;
+}
+
+#onlineBox button, #onlineBox input {
+  font-size: 16px;
+  padding: 9px 12px;
+  margin: 5px;
+  border-radius: 8px;
+  border: none;
+}
+
+#onlineBox button {
+  cursor: pointer;
+  background: white;
+  color: black;
+  font-weight: bold;
+}
+
+#roomCodeInput {
+  width: 150px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+#roomInfo, #playerInfo, #playersInfo {
+  margin-top: 6px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
 #turnText {
   font-size: 22px;
   font-weight: bold;
@@ -67,26 +103,11 @@ h1 {
   box-sizing: border-box;
 }
 
-.light {
-  background: #f0d9b5;
-}
-
-.dark {
-  background: #769656;
-}
-
-.white-piece {
-  color: white;
-}
-
-.black-piece {
-  color: black;
-}
-
-.selected {
-  outline: 4px solid yellow;
-  outline-offset: -4px;
-}
+.light { background: #f0d9b5; }
+.dark { background: #769656; }
+.white-piece { color: white; text-shadow: 0 0 2px black; }
+.black-piece { color: black; }
+.selected { outline: 4px solid yellow; outline-offset: -4px; }
 
 .move-highlight::after {
   content: "";
@@ -97,9 +118,7 @@ h1 {
   position: absolute;
 }
 
-.capture-highlight {
-  box-shadow: inset 0 0 0 5px red;
-}
+.capture-highlight { box-shadow: inset 0 0 0 5px red; }
 
 .board-label {
   position: absolute;
@@ -109,16 +128,8 @@ h1 {
   pointer-events: none;
   z-index: 5;
 }
-
-.rank-label {
-  top: 2px;
-  left: 4px;
-}
-
-.file-label {
-  bottom: 0px;
-  right: 5px;
-}
+.rank-label { top: 2px; left: 4px; }
+.file-label { bottom: 0px; right: 5px; }
 
 #historyBox {
   width: 210px;
@@ -173,4 +184,33 @@ h1 {
   margin: 8px;
   padding: 8px 14px;
   cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .game-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #board {
+    width: 96vw;
+    height: 96vw;
+    grid-template-columns: repeat(8, 12vw);
+    grid-template-rows: repeat(8, 12vw);
+  }
+
+  .square {
+    width: 12vw;
+    height: 12vw;
+    font-size: 8vw;
+  }
+
+  #historyBox {
+    width: 96vw;
+    height: 230px;
+  }
+
+  #moveHistory {
+    height: 140px;
+  }
 }
