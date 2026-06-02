@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ka">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,12 +11,15 @@
   <h1>2v2 Chess</h1>
 
   <div id="joinScreen" class="panel">
-    <h2>ოთახში შესვლა</h2>
+    <h2>Join Game Room</h2>
+
+    <label>Your Name</label>
+    <input id="nameInput" type="text" placeholder="Example: Saba">
 
     <label>Room Code</label>
-    <input id="roomInput" type="text" placeholder="მაგ: saba123">
+    <input id="roomInput" type="text" placeholder="Example: room123">
 
-    <label>აირჩიე მოთამაშე</label>
+    <label>Choose Your Player</label>
     <select id="playerSelect">
       <option value="White1">White1</option>
       <option value="Black1">Black1</option>
@@ -27,15 +30,19 @@
     <button id="joinBtn">Join Room</button>
 
     <p class="small-text">
-      4 მოთამაშე უნდა შევიდეს ერთსა და იმავე Room Code-ით, მაგრამ სხვადასხვა სახელით.
+      Four players must use the same Room Code, but each player must choose a different seat.
     </p>
   </div>
 
   <div id="gameScreen" class="hidden">
+    <header id="gameHeader">
+      <h2 id="gameTitle">2v2 Chess Arena</h2>
+      <p id="turnText">Turn: White1</p>
+    </header>
+
     <div id="topInfo">
       <p id="roomText">Room: -</p>
       <p id="playerText">You are: -</p>
-      <p id="turnText">Turn: White1</p>
     </div>
 
     <div id="playersBox">
@@ -45,22 +52,31 @@
       <div id="Black2Status">Black2: empty</div>
     </div>
 
-    <div id="timers">
-      <div class="timer-card">White Time: <span id="whiteTimer">10:00</span></div>
-      <div class="timer-card">Black Time: <span id="blackTimer">10:00</span></div>
-    </div>
-
     <button id="restartBtn">Restart Room Game</button>
 
-    <div class="game-container">
-      <div class="board-wrap">
-        <div id="board"></div>
-      </div>
+    <main class="game-layout">
+      <aside class="side-panel timer-panel">
+        <h2>Timers</h2>
+        <div class="timer-card white-timer">White Team <span id="whiteTimer">10:00</span></div>
+        <div class="timer-card black-timer">Black Team <span id="blackTimer">10:00</span></div>
+      </aside>
 
-      <div id="historyBox">
+      <section class="board-wrap">
+        <div id="board"></div>
+      </section>
+
+      <aside id="historyBox" class="side-panel">
         <h2>Move History</h2>
         <ol id="moveHistory"></ol>
-      </div>
+      </aside>
+    </main>
+  </div>
+
+  <div id="gameOverOverlay" class="hidden">
+    <div id="gameOverBox">
+      <h2 id="gameOverTitle">Game Over</h2>
+      <p id="gameOverMessage">Winner</p>
+      <button id="closeGameOverBtn">Close</button>
     </div>
   </div>
 
