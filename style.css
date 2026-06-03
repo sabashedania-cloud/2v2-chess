@@ -230,21 +230,23 @@ button:disabled {
 }
 
 #board {
-  width: min(560px, 94vw);
-  height: min(560px, 94vw);
+  width: min(600px, 94vw);
+  height: min(600px, 94vw);
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   grid-template-rows: repeat(8, 1fr);
-  border: 4px solid white;
+  border: 6px solid #2b1d12;
+  border-radius: 14px;
+  overflow: hidden;
   box-sizing: border-box;
   flex-shrink: 0;
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.55), inset 0 0 0 4px rgba(255,255,255,0.18);
 }
 
 .square {
   width: 100%;
   height: 100%;
-  font-size: clamp(30px, 8vw, 48px);
+  font-size: clamp(36px, 8vw, 62px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -254,25 +256,54 @@ button:disabled {
   user-select: none;
 }
 
-.square span {
+.square .piece-symbol {
   line-height: 1;
-  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.45));
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 900;
+  transform: translateY(-2px);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.square:hover .piece-symbol {
+  transform: translateY(-5px) scale(1.07);
 }
 
 .light {
-  background: #f0d9b5;
+  background: radial-gradient(circle at 30% 25%, #f8e3b6 0%, #edcc8e 58%, #d8ad68 100%);
 }
 
 .dark {
-  background: #769656;
+  background: radial-gradient(circle at 30% 25%, #8cab62 0%, #6f8f4b 60%, #526f34 100%);
 }
 
-.white-piece {
-  color: white;
+.white-piece .piece-symbol,
+.white-chess-piece {
+  color: #fff8df;
+  -webkit-text-stroke: 1.1px rgba(75, 53, 30, 0.85);
+  text-shadow:
+    0 1px 0 #9d7b44,
+    0 2px 0 #7e633b,
+    0 4px 7px rgba(0, 0, 0, 0.65),
+    0 0 13px rgba(255, 239, 180, 0.55);
 }
 
-.black-piece {
-  color: black;
+.black-piece .piece-symbol,
+.black-chess-piece {
+  color: #111725;
+  -webkit-text-stroke: 1px rgba(230, 210, 158, 0.6);
+  text-shadow:
+    0 1px 0 #4a5265,
+    0 2px 0 #070a12,
+    0 4px 8px rgba(0, 0, 0, 0.85),
+    0 0 12px rgba(20, 30, 55, 0.6);
+}
+
+.piece-king, .piece-queen {
+  filter: drop-shadow(0 0 8px rgba(255, 218, 92, 0.55));
+}
+
+.piece-knight {
+  transform: translateY(-2px) rotate(-2deg);
 }
 
 .selected {
