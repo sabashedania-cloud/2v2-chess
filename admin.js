@@ -87,6 +87,7 @@ function renderRooms(rooms) {
         <span>Players: <b>${joinedCount}/4</b></span>
         <span>Turn: <b>${escapeHtml(room.currentTurn || "White1")}</b></span>
         <span>Moves: <b>${Array.isArray(room.moves) ? room.moves.length : 0}</b></span>
+        <span>Time: <b>${escapeHtml(room.timeLimitMinutes || 10)} min</b></span>
       </div>
 
       ${resultHtml}
