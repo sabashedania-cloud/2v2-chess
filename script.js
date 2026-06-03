@@ -390,7 +390,10 @@ function startTimer() {
 
   timerInterval = setInterval(async () => {
     if (!roomRef) return;
-    if (!gameStarted || !gameClockStarted || getJoinedCount(latestPlayers) < 4) return;
+    if (!gameStarted || !gameClockStarted || getJoinedCount(latestPlayers) < 4) {
+      lastTimerUpdate = Date.now();
+      return;
+    }
     if (gameOver || waitingPromotion) return;
 
     /*
@@ -423,6 +426,33 @@ function startTimer() {
     updateTimers();
     await saveGameState();
   }, 1000);
+}
+
+
+async function finishGameIfNeeded() {
+  if (gameOver || waitingPromotion) return false;
+
+  const color = getTurnColor();
+
+  if (hasAnyLegalMove(color)) {
+    return false;
+  }
+
+  gameOver = true;
+
+  if (isKingInCheck(color)) {
+    const winnerTeam = color === "white" ? "black" : "white";
+    setGameResult(winnerTeam, "Checkmate");
+    turnText.textContent = (winnerTeam === "white" ? "WHITE" : "BLACK") + " WINS BY CHECKMATE!";
+  } else {
+    setGameResult("draw", "Stalemate");
+    turnText.textContent = "STALEMATE!";
+  }
+
+  playSound("mate");
+  await saveGameState({ gameOver: true, gameResult });
+  handleGameOverPopup();
+  return true;
 }
 
 function setGameResult(winnerTeam, reason) {
@@ -680,6 +710,24 @@ function getSquareName(row, col) {
   return files[col] + (8 - row);
 }
 
+function getPieceClass(piece) {
+  const map = {
+    "♔": "piece-king white-chess-piece",
+    "♕": "piece-queen white-chess-piece",
+    "♖": "piece-rook white-chess-piece",
+    "♗": "piece-bishop white-chess-piece",
+    "♘": "piece-knight white-chess-piece",
+    "♙": "piece-pawn white-chess-piece",
+    "♚": "piece-king black-chess-piece",
+    "♛": "piece-queen black-chess-piece",
+    "♜": "piece-rook black-chess-piece",
+    "♝": "piece-bishop black-chess-piece",
+    "♞": "piece-knight black-chess-piece",
+    "♟": "piece-pawn black-chess-piece"
+  };
+  return map[piece] || "";
+}
+
 function createBoard() {
   board.innerHTML = "";
 
@@ -742,6 +790,9 @@ function createBoard() {
       }
 
       const pieceSpan = document.createElement("span");
+      pieceSpan.classList.add("piece-symbol");
+      const pieceClass = getPieceClass(piece);
+      if (pieceClass) pieceSpan.classList.add(...pieceClass.split(" "));
       pieceSpan.textContent = piece;
       square.appendChild(pieceSpan);
 
@@ -899,14 +950,19 @@ async function makeMove(row, col) {
   }
 
   moves.push(moveText);
-  gameClockStarted = true;
+  if (!gameClockStarted) {
+    gameClockStarted = true;
+    lastTimerUpdate = Date.now();
+  }
   updateHistory();
 
   playSound(capturedPiece !== "" ? "capture" : "move");
 
   nextTurn();
 
-  if (!gameOver && isKingInCheck(getTurnColor())) {
+  const finished = await finishGameIfNeeded();
+
+  if (!finished && !gameOver && isKingInCheck(getTurnColor())) {
     playSound("check");
   }
 
@@ -950,7 +1006,9 @@ function showPromotion(row, col, color, moveText) {
       playSound("move");
       nextTurn();
 
-      if (!gameOver && isKingInCheck(getTurnColor())) {
+      const finished = await finishGameIfNeeded();
+
+      if (!finished && !gameOver && isKingInCheck(getTurnColor())) {
         playSound("check");
       }
 
