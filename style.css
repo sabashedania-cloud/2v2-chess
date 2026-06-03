@@ -587,3 +587,36 @@ button:disabled {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.admin-result-box {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 12px 0 14px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #555;
+  background: #181818;
+}
+
+.admin-result-box span {
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #eee;
+}
+
+.finished-result {
+  border-color: #55ff77;
+}
+
+.pending-result {
+  opacity: 0.85;
+}
+
+@media (max-width: 800px) {
+  .admin-result-box {
+    grid-template-columns: 1fr;
+  }
+}
