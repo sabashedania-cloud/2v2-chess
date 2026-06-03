@@ -659,3 +659,92 @@ button:disabled {
   background: #ffd54f;
   color: #111;
 }
+
+.creator-time-box {
+  width: 100%;
+}
+
+#roomTimeText {
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+
+/* Winner / loser result popup */
+.winner-image {
+  font-size: 64px;
+  line-height: 1;
+  margin: 10px 0 14px;
+  text-align: center;
+}
+
+.game-over-teams {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.team-result {
+  border-radius: 16px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.08);
+}
+
+.team-result-title {
+  font-size: 13px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.team-result-team {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.team-result-names {
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+.winner-result-card {
+  box-shadow: 0 0 22px rgba(255, 215, 0, 0.22);
+  border-color: rgba(255, 215, 0, 0.45);
+}
+
+.loser-result-card {
+  opacity: 0.85;
+}
+
+.draw-result-card {
+  grid-column: 1 / -1;
+  text-align: center;
+}
+
+.admin-winner-visual {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.admin-result-icon {
+  font-size: 42px;
+  min-width: 62px;
+  text-align: center;
+}
+
+.admin-result-details {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+@media (max-width: 700px) {
+  .game-over-teams {
+    grid-template-columns: 1fr;
+  }
+}
