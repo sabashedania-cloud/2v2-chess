@@ -132,14 +132,19 @@ function renderGameResult(result, players) {
   const loserNames = namesFromSlots(result.losers);
   const finishedAt = result.finishedAt ? formatDate(result.finishedAt) : "Unknown";
 
+  const icon = result.winnerTeam === "Draw" ? "🤝" : (result.winnerTeam === "White Team" ? "🏆 ♔" : "🏆 ♚");
+
   return `
-    <div class="admin-result-box finished-result">
-      <span>Winner: <b>${escapeHtml(result.winnerTeam || "Unknown")}</b></span>
-      <span>Winners: <b>${escapeHtml(winnerNames || "-")}</b></span>
-      <span>Loser: <b>${escapeHtml(result.loserTeam || "Unknown")}</b></span>
-      <span>Losers: <b>${escapeHtml(loserNames || "-")}</b></span>
-      <span>Reason: <b>${escapeHtml(result.reason || "Unknown")}</b></span>
-      <span>Finished: <b>${escapeHtml(finishedAt)}</b></span>
+    <div class="admin-result-box finished-result admin-winner-visual">
+      <div class="admin-result-icon">${icon}</div>
+      <div class="admin-result-details">
+        <span>Winner: <b>${escapeHtml(result.winnerTeam || "Unknown")}</b></span>
+        <span>Winners: <b>${escapeHtml(winnerNames || "-")}</b></span>
+        <span>Loser: <b>${escapeHtml(result.loserTeam || "Unknown")}</b></span>
+        <span>Losers: <b>${escapeHtml(loserNames || "-")}</b></span>
+        <span>Reason: <b>${escapeHtml(result.reason || "Unknown")}</b></span>
+        <span>Finished: <b>${escapeHtml(finishedAt)}</b></span>
+      </div>
     </div>
   `;
 }
