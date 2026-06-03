@@ -73,6 +73,7 @@ function renderRooms(rooms) {
     const createdText = room.createdAt ? formatDate(room.createdAt) : "Unknown";
     const creatorText = room.createdBy || "Unknown";
     const resultHtml = renderGameResult(room.gameResult, players);
+    const historyHtml = renderGameHistory(room.gameHistory);
 
     card.innerHTML = `
       <div class="admin-room-top">
@@ -91,6 +92,7 @@ function renderRooms(rooms) {
       </div>
 
       ${resultHtml}
+      ${historyHtml}
 
       <div class="admin-player-grid">
         ${turnOrder.map(player => playerBox(player, players[player], room.currentTurn)).join("")}
@@ -116,6 +118,48 @@ function renderRooms(rooms) {
   finishedRooms.textContent = finished;
 }
 
+
+function renderGameHistory(history) {
+  const results = Object.values(history || {}).sort((a, b) => {
+    return (b.finishedAt || 0) - (a.finishedAt || 0);
+  });
+
+  if (results.length === 0) {
+    return `
+      <div class="admin-history-box">
+        <h3>Game History</h3>
+        <div class="admin-history-empty">No finished games in this room yet.</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="admin-history-box">
+      <h3>Game History</h3>
+      <div class="admin-history-list">
+        ${results.map(result => renderHistoryItem(result)).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderHistoryItem(result) {
+  const winnerNames = namesFromSlots(result.winners);
+  const loserNames = namesFromSlots(result.losers);
+  const finishedAt = result.finishedAt ? formatDate(result.finishedAt) : "Unknown";
+  const icon = result.winnerTeam === "Draw" ? "🤝" : (result.winnerTeam === "White Team" ? "♔" : "♚");
+  return `
+    <div class="admin-history-item">
+      <div class="history-icon">${icon}</div>
+      <div class="history-main">
+        <div><b>Game ${escapeHtml(result.gameNumber || "-")}</b> • ${escapeHtml(result.reason || "Unknown")}</div>
+        <div>Winner: <b>${escapeHtml(result.winnerTeam || "Unknown")}</b> — ${escapeHtml(winnerNames || "-")}</div>
+        <div>Loser: <b>${escapeHtml(result.loserTeam || "Unknown")}</b> — ${escapeHtml(loserNames || "-")}</div>
+        <div class="history-date">${escapeHtml(finishedAt)}</div>
+      </div>
+    </div>
+  `;
+}
 
 function renderGameResult(result, players) {
   if (!result) {
