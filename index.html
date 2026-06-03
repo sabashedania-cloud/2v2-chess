@@ -16,6 +16,15 @@
     <label>Your Name</label>
     <input id="nameInput" type="text" placeholder="Enter your name">
 
+    <label>Time Control</label>
+    <select id="timeSelect">
+      <option value="5">5 minutes</option>
+      <option value="10" selected>10 minutes</option>
+      <option value="15">15 minutes</option>
+      <option value="20">20 minutes</option>
+      <option value="30">30 minutes</option>
+    </select>
+
     <div class="room-actions">
       <button id="createRoomBtn">Create Room</button>
     </div>
@@ -83,6 +92,14 @@
           <ol id="moveHistory"></ol>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="gameOverModal" class="modal hidden">
+    <div class="modal-card">
+      <h2 id="gameOverTitle">Game Over</h2>
+      <p id="gameOverMessage">Result</p>
+      <button id="newGameBtn">New Game</button>
     </div>
   </div>
 
