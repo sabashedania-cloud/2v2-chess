@@ -36,7 +36,6 @@ const joinedCountText = document.getElementById("joinedCountText");
 const nameInput = document.getElementById("nameInput");
 const roomInput = document.getElementById("roomInput");
 const timeSelect = document.getElementById("timeSelect");
-const creatorTimeBox = document.getElementById("creatorTimeBox");
 const createRoomBtn = document.getElementById("createRoomBtn");
 const loadRoomBtn = document.getElementById("loadRoomBtn");
 const slotPanel = document.getElementById("slotPanel");
@@ -52,12 +51,9 @@ const whiteTimerEl = document.getElementById("whiteTimer");
 const blackTimerEl = document.getElementById("blackTimer");
 const roomText = document.getElementById("roomText");
 const playerText = document.getElementById("playerText");
-const roomTimeText = document.getElementById("roomTimeText");
 const gameOverModal = document.getElementById("gameOverModal");
 const gameOverTitle = document.getElementById("gameOverTitle");
 const gameOverMessage = document.getElementById("gameOverMessage");
-const winnerImage = document.getElementById("winnerImage");
-const gameOverTeams = document.getElementById("gameOverTeams");
 const newGameBtn = document.getElementById("newGameBtn");
 
 const playerStatusEls = {
@@ -165,7 +161,6 @@ slotButtons.forEach(btn => btn.addEventListener("click", () => claimSlot(btn.dat
 
 async function createRoom() {
   myName = nameInput.value.trim();
-  if (creatorTimeBox) creatorTimeBox.classList.remove("hidden");
   if (myName.length < 2) {
     alert("Enter your name first.");
     return;
@@ -197,7 +192,6 @@ async function createRoom() {
 
 async function loadRoom() {
   myName = nameInput.value.trim();
-  if (creatorTimeBox) creatorTimeBox.classList.add("hidden");
   const code = cleanRoomCode(roomInput.value);
 
   if (myName.length < 2) {
@@ -297,8 +291,6 @@ function listenRoom() {
     gameResult = data.gameResult || null;
     timeLimitMinutes = normalizeTimeMinutes(data.timeLimitMinutes || 10);
     timeLimitSeconds = Number(data.timeLimitSeconds || timeLimitMinutes * 60);
-    if (timeSelect) timeSelect.value = String(timeLimitMinutes);
-    if (roomTimeText) roomTimeText.textContent = "Time: " + timeLimitMinutes + " minutes";
     waitingPromotion = data.waitingPromotion || false;
     moves = data.moves || [];
     castlingRights = data.castlingRights || createNewGameState().castlingRights;
@@ -390,10 +382,7 @@ function startTimer() {
 
   timerInterval = setInterval(async () => {
     if (!roomRef) return;
-    if (!gameStarted || !gameClockStarted || getJoinedCount(latestPlayers) < 4) {
-      lastTimerUpdate = Date.now();
-      return;
-    }
+    if (!gameStarted || !gameClockStarted || getJoinedCount(latestPlayers) < 4) return;
     if (gameOver || waitingPromotion) return;
 
     /*
@@ -426,33 +415,6 @@ function startTimer() {
     updateTimers();
     await saveGameState();
   }, 1000);
-}
-
-
-async function finishGameIfNeeded() {
-  if (gameOver || waitingPromotion) return false;
-
-  const color = getTurnColor();
-
-  if (hasAnyLegalMove(color)) {
-    return false;
-  }
-
-  gameOver = true;
-
-  if (isKingInCheck(color)) {
-    const winnerTeam = color === "white" ? "black" : "white";
-    setGameResult(winnerTeam, "Checkmate");
-    turnText.textContent = (winnerTeam === "white" ? "WHITE" : "BLACK") + " WINS BY CHECKMATE!";
-  } else {
-    setGameResult("draw", "Stalemate");
-    turnText.textContent = "STALEMATE!";
-  }
-
-  playSound("mate");
-  await saveGameState({ gameOver: true, gameResult });
-  handleGameOverPopup();
-  return true;
 }
 
 function setGameResult(winnerTeam, reason) {
@@ -610,42 +572,13 @@ function handleGameOverPopup() {
 
   lastShownResultId = resultId;
   const isDraw = gameResult.winnerTeam === "Draw";
-  const winnerNames = namesFromSlots(gameResult.winners);
-  const loserNames = namesFromSlots(gameResult.losers);
-  const reason = gameResult.reason || "Unknown";
+  gameOverTitle.textContent = isDraw ? "Game Draw" : gameResult.winnerTeam + " Wins!";
 
-  if (isDraw) {
-    gameOverTitle.textContent = "Game Draw";
-    if (winnerImage) winnerImage.textContent = "🤝";
-    gameOverMessage.textContent = "The game ended in a draw. Reason: " + reason;
-    if (gameOverTeams) {
-      gameOverTeams.innerHTML = `
-        <div class="team-result draw-result-card">
-          <div class="team-result-title">Draw</div>
-          <div class="team-result-names">No winner / no loser</div>
-        </div>
-      `;
-    }
-  } else {
-    const isWhiteWinner = gameResult.winnerTeam === "White Team";
-    gameOverTitle.textContent = gameResult.winnerTeam + " Wins!";
-    if (winnerImage) winnerImage.textContent = isWhiteWinner ? "🏆 ♔" : "🏆 ♚";
-    gameOverMessage.textContent = "Victory by " + reason;
-    if (gameOverTeams) {
-      gameOverTeams.innerHTML = `
-        <div class="team-result winner-result-card">
-          <div class="team-result-title">Winner</div>
-          <div class="team-result-team">${escapeHtml(gameResult.winnerTeam || "Unknown")}</div>
-          <div class="team-result-names">${escapeHtml(winnerNames || "-")}</div>
-        </div>
-        <div class="team-result loser-result-card">
-          <div class="team-result-title">Loser</div>
-          <div class="team-result-team">${escapeHtml(gameResult.loserTeam || "Unknown")}</div>
-          <div class="team-result-names">${escapeHtml(loserNames || "-")}</div>
-        </div>
-      `;
-    }
-  }
+  const winners = namesFromSlots(gameResult.winners);
+  const losers = namesFromSlots(gameResult.losers);
+  gameOverMessage.textContent = isDraw
+    ? "Reason: " + (gameResult.reason || "Draw")
+    : "Winner: " + (winners || gameResult.winnerTeam) + " | Loser: " + (losers || gameResult.loserTeam) + " | Reason: " + (gameResult.reason || "Unknown");
 
   gameOverModal.classList.remove("hidden");
 }
@@ -653,15 +586,6 @@ function handleGameOverPopup() {
 function namesFromSlots(slots) {
   if (!slots) return "";
   return Object.values(slots).filter(Boolean).join(" + ");
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }
 
 function playSound(type) {
@@ -708,24 +632,6 @@ function isKing(piece) {
 
 function getSquareName(row, col) {
   return files[col] + (8 - row);
-}
-
-function getPieceClass(piece) {
-  const map = {
-    "♔": "piece-king white-chess-piece",
-    "♕": "piece-queen white-chess-piece",
-    "♖": "piece-rook white-chess-piece",
-    "♗": "piece-bishop white-chess-piece",
-    "♘": "piece-knight white-chess-piece",
-    "♙": "piece-pawn white-chess-piece",
-    "♚": "piece-king black-chess-piece",
-    "♛": "piece-queen black-chess-piece",
-    "♜": "piece-rook black-chess-piece",
-    "♝": "piece-bishop black-chess-piece",
-    "♞": "piece-knight black-chess-piece",
-    "♟": "piece-pawn black-chess-piece"
-  };
-  return map[piece] || "";
 }
 
 function createBoard() {
@@ -790,9 +696,6 @@ function createBoard() {
       }
 
       const pieceSpan = document.createElement("span");
-      pieceSpan.classList.add("piece-symbol");
-      const pieceClass = getPieceClass(piece);
-      if (pieceClass) pieceSpan.classList.add(...pieceClass.split(" "));
       pieceSpan.textContent = piece;
       square.appendChild(pieceSpan);
 
@@ -950,19 +853,14 @@ async function makeMove(row, col) {
   }
 
   moves.push(moveText);
-  if (!gameClockStarted) {
-    gameClockStarted = true;
-    lastTimerUpdate = Date.now();
-  }
+  gameClockStarted = true;
   updateHistory();
 
   playSound(capturedPiece !== "" ? "capture" : "move");
 
   nextTurn();
 
-  const finished = await finishGameIfNeeded();
-
-  if (!finished && !gameOver && isKingInCheck(getTurnColor())) {
+  if (!gameOver && isKingInCheck(getTurnColor())) {
     playSound("check");
   }
 
@@ -1006,9 +904,7 @@ function showPromotion(row, col, color, moveText) {
       playSound("move");
       nextTurn();
 
-      const finished = await finishGameIfNeeded();
-
-      if (!finished && !gameOver && isKingInCheck(getTurnColor())) {
+      if (!gameOver && isKingInCheck(getTurnColor())) {
         playSound("check");
       }
 
