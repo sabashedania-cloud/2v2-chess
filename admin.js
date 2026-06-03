@@ -23,6 +23,7 @@ const adminRooms = document.getElementById("adminRooms");
 const totalRooms = document.getElementById("totalRooms");
 const waitingRooms = document.getElementById("waitingRooms");
 const playingRooms = document.getElementById("playingRooms");
+const finishedRooms = document.getElementById("finishedRooms");
 const refreshBtn = document.getElementById("refreshBtn");
 
 const turnOrder = ["White1", "Black1", "White2", "Black2"];
@@ -45,10 +46,12 @@ function renderRooms(rooms) {
 
   let waiting = 0;
   let playing = 0;
+  let finished = 0;
 
   if (entries.length === 0) {
     waitingRooms.textContent = "0";
     playingRooms.textContent = "0";
+    finishedRooms.textContent = "0";
     adminRooms.innerHTML = '<div class="empty-admin">No rooms created yet.</div>';
     return;
   }
@@ -61,6 +64,7 @@ function renderRooms(rooms) {
     const status = getRoomStatus(room, joinedCount);
 
     if (status === "Playing") playing++;
+    else if (status === "Finished") finished++;
     else waiting++;
 
     const card = document.createElement("div");
@@ -68,6 +72,7 @@ function renderRooms(rooms) {
 
     const createdText = room.createdAt ? formatDate(room.createdAt) : "Unknown";
     const creatorText = room.createdBy || "Unknown";
+    const resultHtml = renderGameResult(room.gameResult, players);
 
     card.innerHTML = `
       <div class="admin-room-top">
@@ -83,6 +88,8 @@ function renderRooms(rooms) {
         <span>Turn: <b>${escapeHtml(room.currentTurn || "White1")}</b></span>
         <span>Moves: <b>${Array.isArray(room.moves) ? room.moves.length : 0}</b></span>
       </div>
+
+      ${resultHtml}
 
       <div class="admin-player-grid">
         ${turnOrder.map(player => playerBox(player, players[player], room.currentTurn)).join("")}
@@ -105,6 +112,42 @@ function renderRooms(rooms) {
 
   waitingRooms.textContent = waiting;
   playingRooms.textContent = playing;
+  finishedRooms.textContent = finished;
+}
+
+
+function renderGameResult(result, players) {
+  if (!result) {
+    return `
+      <div class="admin-result-box pending-result">
+        <span>Winner: <b>Not finished yet</b></span>
+        <span>Loser: <b>-</b></span>
+        <span>Reason: <b>-</b></span>
+      </div>
+    `;
+  }
+
+  const winnerNames = namesFromSlots(result.winners);
+  const loserNames = namesFromSlots(result.losers);
+  const finishedAt = result.finishedAt ? formatDate(result.finishedAt) : "Unknown";
+
+  return `
+    <div class="admin-result-box finished-result">
+      <span>Winner: <b>${escapeHtml(result.winnerTeam || "Unknown")}</b></span>
+      <span>Winners: <b>${escapeHtml(winnerNames || "-")}</b></span>
+      <span>Loser: <b>${escapeHtml(result.loserTeam || "Unknown")}</b></span>
+      <span>Losers: <b>${escapeHtml(loserNames || "-")}</b></span>
+      <span>Reason: <b>${escapeHtml(result.reason || "Unknown")}</b></span>
+      <span>Finished: <b>${escapeHtml(finishedAt)}</b></span>
+    </div>
+  `;
+}
+
+function namesFromSlots(slots) {
+  if (!slots) return "";
+  return Object.entries(slots)
+    .map(([slot, name]) => name ? `${slot}: ${name}` : `${slot}: empty`)
+    .join(" + ");
 }
 
 function playerBox(slot, playerData, currentTurn) {
