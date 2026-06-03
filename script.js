@@ -35,6 +35,7 @@ const lobbyStatus = document.getElementById("lobbyStatus");
 const joinedCountText = document.getElementById("joinedCountText");
 const nameInput = document.getElementById("nameInput");
 const roomInput = document.getElementById("roomInput");
+const timeSelect = document.getElementById("timeSelect");
 const createRoomBtn = document.getElementById("createRoomBtn");
 const loadRoomBtn = document.getElementById("loadRoomBtn");
 const slotPanel = document.getElementById("slotPanel");
@@ -50,6 +51,10 @@ const whiteTimerEl = document.getElementById("whiteTimer");
 const blackTimerEl = document.getElementById("blackTimer");
 const roomText = document.getElementById("roomText");
 const playerText = document.getElementById("playerText");
+const gameOverModal = document.getElementById("gameOverModal");
+const gameOverTitle = document.getElementById("gameOverTitle");
+const gameOverMessage = document.getElementById("gameOverMessage");
+const newGameBtn = document.getElementById("newGameBtn");
 
 const playerStatusEls = {
   White1: document.getElementById("White1Status"),
@@ -69,6 +74,9 @@ let latestPlayers = {};
 let gameStarted = false;
 let gameClockStarted = false;
 let gameResult = null;
+let timeLimitMinutes = 10;
+let timeLimitSeconds = 600;
+let lastShownResultId = null;
 
 let selectedPiece = null;
 let selectedRow = null;
@@ -111,7 +119,10 @@ function emptyPlayers() {
   };
 }
 
-function createNewGameState(creatorName = "") {
+function createNewGameState(creatorName = "", minutes = 10) {
+  const safeMinutes = normalizeTimeMinutes(minutes);
+  const totalSeconds = safeMinutes * 60;
+
   return {
     roomCode: roomCode || "",
     createdAt: Date.now(),
@@ -122,11 +133,13 @@ function createNewGameState(creatorName = "") {
     gameStarted: false,
     gameClockStarted: false,
     gameResult: null,
+    timeLimitMinutes: safeMinutes,
+    timeLimitSeconds: totalSeconds,
     waitingPromotion: false,
     moves: [],
     enPassantTarget: null,
-    whiteTime: 600,
-    blackTime: 600,
+    whiteTime: totalSeconds,
+    blackTime: totalSeconds,
     lastTimerUpdate: Date.now(),
     castlingRights: {
       whiteKingMoved: false,
@@ -143,6 +156,7 @@ function createNewGameState(creatorName = "") {
 createRoomBtn.addEventListener("click", createRoom);
 loadRoomBtn.addEventListener("click", loadRoom);
 copyRoomBtn.addEventListener("click", copyRoomCode);
+newGameBtn.addEventListener("click", startNewGameInSameRoom);
 slotButtons.forEach(btn => btn.addEventListener("click", () => claimSlot(btn.dataset.player)));
 
 async function createRoom() {
@@ -161,7 +175,8 @@ async function createRoom() {
     const snapshot = await get(newRoomRef);
 
     if (!snapshot.exists()) {
-      const newGameState = createNewGameState(myName);
+      const selectedMinutes = normalizeTimeMinutes(timeSelect.value);
+      const newGameState = createNewGameState(myName, selectedMinutes);
       newGameState.roomCode = code;
       await set(newRoomRef, newGameState);
       roomInput.value = code;
@@ -274,12 +289,14 @@ function listenRoom() {
     gameStarted = data.gameStarted || false;
     gameClockStarted = data.gameClockStarted || false;
     gameResult = data.gameResult || null;
+    timeLimitMinutes = normalizeTimeMinutes(data.timeLimitMinutes || 10);
+    timeLimitSeconds = Number(data.timeLimitSeconds || timeLimitMinutes * 60);
     waitingPromotion = data.waitingPromotion || false;
     moves = data.moves || [];
     castlingRights = data.castlingRights || createNewGameState().castlingRights;
     enPassantTarget = data.enPassantTarget || null;
-    whiteTime = data.whiteTime ?? 600;
-    blackTime = data.blackTime ?? 600;
+    whiteTime = data.whiteTime ?? timeLimitSeconds;
+    blackTime = data.blackTime ?? timeLimitSeconds;
     lastTimerUpdate = data.lastTimerUpdate || Date.now();
     latestPlayers = normalizePlayers(data.players || emptyPlayers());
 
@@ -287,6 +304,7 @@ function listenRoom() {
     updateSlotButtons(latestPlayers);
     updateHistory();
     updateTimers();
+    handleGameOverPopup();
 
     const joinedCount = getJoinedCount(latestPlayers);
     const allJoined = joinedCount === 4;
@@ -463,6 +481,12 @@ function cleanRoomCode(value) {
   return value.trim().toUpperCase().replace(/\s+/g, "");
 }
 
+function normalizeTimeMinutes(value) {
+  const allowed = [5, 10, 15, 20, 30];
+  const minutes = Number(value);
+  return allowed.includes(minutes) ? minutes : 10;
+}
+
 function normalizePlayers(players) {
   const result = emptyPlayers();
 
@@ -501,6 +525,67 @@ async function copyRoomCode() {
     roomCodeCopy.select();
     document.execCommand("copy");
   }
+}
+
+async function startNewGameInSameRoom() {
+  if (!roomRef || !roomCode) return;
+
+  const playersSnapshot = await get(ref(db, "rooms/" + roomCode + "/players"));
+  const players = playersSnapshot.val() || emptyPlayers();
+  const joinedCount = getJoinedCount(normalizePlayers(players));
+  const totalSeconds = normalizeTimeMinutes(timeLimitMinutes) * 60;
+
+  selectedPiece = null;
+  selectedRow = null;
+  selectedCol = null;
+  gameOverModal.classList.add("hidden");
+  lastShownResultId = null;
+
+  await update(roomRef, {
+    pieces: startingPieces.map(row => [...row]),
+    currentTurn: "White1",
+    gameOver: false,
+    gameStarted: joinedCount === 4,
+    gameClockStarted: false,
+    gameResult: null,
+    waitingPromotion: false,
+    moves: [],
+    enPassantTarget: null,
+    whiteTime: totalSeconds,
+    blackTime: totalSeconds,
+    timeLimitMinutes: normalizeTimeMinutes(timeLimitMinutes),
+    timeLimitSeconds: totalSeconds,
+    lastTimerUpdate: Date.now(),
+    castlingRights: createNewGameState("", timeLimitMinutes).castlingRights
+  });
+}
+
+function handleGameOverPopup() {
+  if (!gameOver || !gameResult) {
+    gameOverModal.classList.add("hidden");
+    lastShownResultId = null;
+    return;
+  }
+
+  const resultId = String(gameResult.finishedAt || gameResult.summary || "finished");
+  if (lastShownResultId === resultId) return;
+
+  lastShownResultId = resultId;
+  const isDraw = gameResult.winnerTeam === "Draw";
+  gameOverTitle.textContent = isDraw ? "Game Draw" : gameResult.winnerTeam + " Wins!";
+
+  const winners = namesFromSlots(gameResult.winners);
+  const losers = namesFromSlots(gameResult.losers);
+  gameOverMessage.textContent = isDraw
+    ? "Reason: " + (gameResult.reason || "Draw")
+    : "Winner: " + (winners || gameResult.winnerTeam) + " | Loser: " + (losers || gameResult.loserTeam) + " | Reason: " + (gameResult.reason || "Unknown");
+
+  gameOverModal.classList.remove("hidden");
+}
+
+function namesFromSlots(slots) {
+  if (!slots) return "";
+  return Object.values(slots).filter(Boolean).join(" + ");
 }
 
 function playSound(type) {
