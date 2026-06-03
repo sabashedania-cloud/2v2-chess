@@ -5,16 +5,23 @@ import {
   set,
   update,
   onValue,
-  get
+  get,
+  runTransaction,
+  onDisconnect
 } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
 
+/*
+  IMPORTANT:
+  This is your Firebase config.
+  If Firebase Console shows a different config, change only this part.
+*/
 const firebaseConfig = {
   apiKey: "AIzaSyCgIujywiokMzJrY_ZWMESozxRxwrMocGI",
   authDomain: "v2-chess-fdc1a.firebaseapp.com",
   projectId: "v2-chess-fdc1a",
   storageBucket: "v2-chess-fdc1a.firebasestorage.app",
-  messagingSenderId: "904445661963",
-  appId: "1:904445661963:web:bfa49b4766a8f4a4e6080e",
+  messagingSenderId: "REPLACE_IF_NEEDED",
+  appId: "REPLACE_IF_NEEDED",
   databaseURL: "https://v2-chess-fdc1a-default-rtdb.firebaseio.com"
 };
 
@@ -23,24 +30,26 @@ const db = getDatabase(app);
 
 const joinScreen = document.getElementById("joinScreen");
 const gameScreen = document.getElementById("gameScreen");
+const gameArea = document.getElementById("gameArea");
+const lobbyStatus = document.getElementById("lobbyStatus");
+const joinedCountText = document.getElementById("joinedCountText");
 const nameInput = document.getElementById("nameInput");
 const roomInput = document.getElementById("roomInput");
-const playerSelect = document.getElementById("playerSelect");
-const joinBtn = document.getElementById("joinBtn");
+const createRoomBtn = document.getElementById("createRoomBtn");
+const loadRoomBtn = document.getElementById("loadRoomBtn");
+const slotPanel = document.getElementById("slotPanel");
+const slotButtons = document.querySelectorAll(".slot-btn");
+const joinMessage = document.getElementById("joinMessage");
+const roomCodeCopy = document.getElementById("roomCodeCopy");
+const copyRoomBtn = document.getElementById("copyRoomBtn");
 
 const board = document.getElementById("board");
 const turnText = document.getElementById("turnText");
-const restartBtn = document.getElementById("restartBtn");
 const moveHistory = document.getElementById("moveHistory");
 const whiteTimerEl = document.getElementById("whiteTimer");
 const blackTimerEl = document.getElementById("blackTimer");
 const roomText = document.getElementById("roomText");
 const playerText = document.getElementById("playerText");
-
-const gameOverOverlay = document.getElementById("gameOverOverlay");
-const gameOverTitle = document.getElementById("gameOverTitle");
-const gameOverMessage = document.getElementById("gameOverMessage");
-const closeGameOverBtn = document.getElementById("closeGameOverBtn");
 
 const playerStatusEls = {
   White1: document.getElementById("White1Status"),
@@ -52,9 +61,13 @@ const playerStatusEls = {
 let roomCode = "";
 let myPlayer = "";
 let myName = "";
+let mySessionId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
 let roomRef = null;
+let roomListenerStarted = false;
 let localUpdatingFromFirebase = false;
-let lastGameOverText = "";
+let latestPlayers = {};
+let gameStarted = false;
+let gameClockStarted = false;
 
 let selectedPiece = null;
 let selectedRow = null;
@@ -63,7 +76,6 @@ let selectedCol = null;
 let currentTurn = "White1";
 const turnOrder = ["White1", "Black1", "White2", "Black2"];
 let gameOver = false;
-let winnerText = "";
 
 let pieces = [];
 let moves = [];
@@ -89,32 +101,13 @@ const startingPieces = [
 
 const files = ["a","b","c","d","e","f","g","h"];
 
-function createEmptyPlayers() {
+function emptyPlayers() {
   return {
-    White1: { joined: false, name: "" },
-    Black1: { joined: false, name: "" },
-    White2: { joined: false, name: "" },
-    Black2: { joined: false, name: "" }
+    White1: null,
+    Black1: null,
+    White2: null,
+    Black2: null
   };
-}
-
-function normalizePlayers(players = {}) {
-  const normalized = createEmptyPlayers();
-
-  for (const player of turnOrder) {
-    const value = players[player];
-
-    if (value === true) {
-      normalized[player] = { joined: true, name: player };
-    } else if (value && typeof value === "object") {
-      normalized[player] = {
-        joined: Boolean(value.joined),
-        name: value.name || player
-      };
-    }
-  }
-
-  return normalized;
 }
 
 function createNewGameState() {
@@ -122,7 +115,8 @@ function createNewGameState() {
     pieces: startingPieces.map(row => [...row]),
     currentTurn: "White1",
     gameOver: false,
-    winnerText: "",
+    gameStarted: false,
+    gameClockStarted: false,
     waitingPromotion: false,
     moves: [],
     enPassantTarget: null,
@@ -137,19 +131,49 @@ function createNewGameState() {
       blackLeftRookMoved: false,
       blackRightRookMoved: false
     },
-    players: createEmptyPlayers()
+    players: emptyPlayers()
   };
 }
 
-joinBtn.addEventListener("click", joinRoom);
-closeGameOverBtn.addEventListener("click", () => gameOverOverlay.classList.add("hidden"));
+createRoomBtn.addEventListener("click", createRoom);
+loadRoomBtn.addEventListener("click", loadRoom);
+copyRoomBtn.addEventListener("click", copyRoomCode);
+slotButtons.forEach(btn => btn.addEventListener("click", () => claimSlot(btn.dataset.player)));
 
-async function joinRoom() {
-  const code = roomInput.value.trim();
-  const typedName = nameInput.value.trim();
+async function createRoom() {
+  myName = nameInput.value.trim();
+  if (myName.length < 2) {
+    alert("Enter your name first.");
+    return;
+  }
 
-  if (typedName.length < 2) {
-    alert("Please enter your name.");
+  let code = "";
+  let tries = 0;
+
+  while (tries < 10) {
+    code = generateRoomCode();
+    const newRoomRef = ref(db, "rooms/" + code);
+    const snapshot = await get(newRoomRef);
+
+    if (!snapshot.exists()) {
+      await set(newRoomRef, createNewGameState());
+      roomInput.value = code;
+      await openLobby(code, "Room created. Choose your slot.");
+      return;
+    }
+
+    tries++;
+  }
+
+  alert("Could not create a room. Try again.");
+}
+
+async function loadRoom() {
+  myName = nameInput.value.trim();
+  const code = cleanRoomCode(roomInput.value);
+
+  if (myName.length < 2) {
+    alert("Enter your name first.");
     return;
   }
 
@@ -158,45 +182,80 @@ async function joinRoom() {
     return;
   }
 
-  roomCode = code;
-  myPlayer = playerSelect.value;
-  myName = typedName;
-  roomRef = ref(db, "rooms/" + roomCode);
-
-  const snapshot = await get(roomRef);
+  const newRoomRef = ref(db, "rooms/" + code);
+  const snapshot = await get(newRoomRef);
 
   if (!snapshot.exists()) {
-    await set(roomRef, createNewGameState());
-  }
-
-  const freshSnapshot = await get(roomRef);
-  const roomData = freshSnapshot.val();
-  const players = normalizePlayers(roomData.players);
-
-  if (players[myPlayer] && players[myPlayer].joined === true) {
-    alert(myPlayer + " is already taken. Please choose another player.");
+    alert("Room not found. Check the code or create a new room.");
     return;
   }
 
-  await update(roomRef, {
-    ["players/" + myPlayer]: {
-      joined: true,
-      name: myName
+  await openLobby(code, "Room loaded. Choose your slot.");
+}
+
+async function openLobby(code, message) {
+  roomCode = cleanRoomCode(code);
+  roomRef = ref(db, "rooms/" + roomCode);
+  roomCodeCopy.value = roomCode;
+  joinMessage.textContent = message;
+  slotPanel.classList.remove("hidden");
+
+  if (!roomListenerStarted) {
+    listenRoom();
+    roomListenerStarted = true;
+  }
+}
+
+async function claimSlot(player) {
+  myName = nameInput.value.trim();
+
+  if (!roomRef || !roomCode) {
+    alert("Create or load a room first.");
+    return;
+  }
+
+  if (myName.length < 2) {
+    alert("Enter your name first.");
+    return;
+  }
+
+  const playerRef = ref(db, "rooms/" + roomCode + "/players/" + player);
+
+  const result = await runTransaction(playerRef, currentValue => {
+    if (currentValue === null || currentValue === false) {
+      return {
+        name: myName,
+        sessionId: mySessionId,
+        joinedAt: Date.now()
+      };
     }
+
+    if (currentValue && currentValue.sessionId === mySessionId) {
+      return currentValue;
+    }
+
+    return;
   });
+
+  if (!result.committed) {
+    alert(player + " is already taken. Choose another slot.");
+    return;
+  }
+
+  myPlayer = player;
+  await onDisconnect(playerRef).remove();
 
   joinScreen.classList.add("hidden");
   gameScreen.classList.remove("hidden");
 
   roomText.textContent = "Room: " + roomCode;
-  playerText.textContent = "You are: " + myName + " (" + myPlayer + ")";
+  playerText.textContent = "You are: " + myPlayer + " (" + myName + ")";
 
-  listenRoom();
   startTimer();
 }
 
 function listenRoom() {
-  onValue(roomRef, (snapshot) => {
+  onValue(roomRef, async (snapshot) => {
     const data = snapshot.val();
     if (!data) return;
 
@@ -205,7 +264,8 @@ function listenRoom() {
     pieces = data.pieces || startingPieces.map(row => [...row]);
     currentTurn = data.currentTurn || "White1";
     gameOver = data.gameOver || false;
-    winnerText = data.winnerText || "";
+    gameStarted = data.gameStarted || false;
+    gameClockStarted = data.gameClockStarted || false;
     waitingPromotion = data.waitingPromotion || false;
     moves = data.moves || [];
     castlingRights = data.castlingRights || createNewGameState().castlingRights;
@@ -213,14 +273,31 @@ function listenRoom() {
     whiteTime = data.whiteTime ?? 600;
     blackTime = data.blackTime ?? 600;
     lastTimerUpdate = data.lastTimerUpdate || Date.now();
+    latestPlayers = normalizePlayers(data.players || emptyPlayers());
 
-    updatePlayerStatuses(normalizePlayers(data.players || {}));
+    updatePlayerStatuses(latestPlayers);
+    updateSlotButtons(latestPlayers);
     updateHistory();
     updateTimers();
-    createBoard();
 
-    if (gameOver && winnerText) {
-      showGameOver(winnerText);
+    const joinedCount = getJoinedCount(latestPlayers);
+    const allJoined = joinedCount === 4;
+    joinedCountText.textContent = joinedCount + "/4";
+
+    if (allJoined && !gameStarted && myPlayer) {
+      gameStarted = true;
+      await update(roomRef, { gameStarted: true, lastTimerUpdate: Date.now() });
+    }
+
+    if (allJoined && gameStarted) {
+      lobbyStatus.classList.add("hidden");
+      gameArea.classList.remove("hidden");
+      createBoard();
+    } else {
+      lobbyStatus.classList.remove("hidden");
+      gameArea.classList.add("hidden");
+      turnText.textContent = "Waiting for players... " + joinedCount + "/4";
+      board.innerHTML = "";
     }
 
     localUpdatingFromFirebase = false;
@@ -229,11 +306,29 @@ function listenRoom() {
 
 function updatePlayerStatuses(players) {
   for (const player of turnOrder) {
-    const info = players[player];
-    const name = info.joined ? info.name : "empty";
-    playerStatusEls[player].textContent = player + ": " + name;
-    playerStatusEls[player].className = info.joined ? "joined" : "";
+    const playerData = players[player];
+    const name = getPlayerName(playerData);
+    playerStatusEls[player].textContent = player + ": " + (name ? name : "empty");
+    playerStatusEls[player].className = name ? "joined" : "";
+
+    if (gameStarted && !gameOver && player === currentTurn) {
+      playerStatusEls[player].classList.add("active-turn");
+    }
   }
+}
+
+function updateSlotButtons(players) {
+  slotButtons.forEach(btn => {
+    const player = btn.dataset.player;
+    const playerData = players[player];
+    const name = getPlayerName(playerData);
+    const isMine = playerData && playerData.sessionId === mySessionId;
+
+    btn.disabled = Boolean(name) && !isMine;
+    btn.classList.toggle("taken", Boolean(name) && !isMine);
+    btn.classList.toggle("mine", Boolean(isMine));
+    btn.textContent = name ? player + " - " + name : player;
+  });
 }
 
 async function saveGameState(extra = {}) {
@@ -243,7 +338,7 @@ async function saveGameState(extra = {}) {
     pieces,
     currentTurn,
     gameOver,
-    winnerText,
+    gameStarted,
     waitingPromotion,
     moves,
     castlingRights,
@@ -255,16 +350,18 @@ async function saveGameState(extra = {}) {
   });
 }
 
-function getSquareName(row, col) {
-  return files[col] + (8 - row);
-}
-
 function startTimer() {
   clearInterval(timerInterval);
 
   timerInterval = setInterval(async () => {
     if (!roomRef) return;
+    if (!gameStarted || !gameClockStarted || getJoinedCount(latestPlayers) < 4) return;
     if (gameOver || waitingPromotion) return;
+
+    /*
+      Only the player whose turn it is decreases the timer.
+      This prevents the timer from running 4x faster on 4 computers.
+    */
     if (myPlayer !== currentTurn) return;
 
     if (currentTurn.includes("White")) {
@@ -272,20 +369,16 @@ function startTimer() {
       if (whiteTime <= 0) {
         whiteTime = 0;
         gameOver = true;
-        winnerText = "Black Team wins on time!";
-        turnText.textContent = winnerText;
+        turnText.textContent = "BLACK WINS ON TIME!";
         playSound("mate");
-        showGameOver(winnerText);
       }
     } else {
       blackTime--;
       if (blackTime <= 0) {
         blackTime = 0;
         gameOver = true;
-        winnerText = "White Team wins on time!";
-        turnText.textContent = winnerText;
+        turnText.textContent = "WHITE WINS ON TIME!";
         playSound("mate");
-        showGameOver(winnerText);
       }
     }
 
@@ -306,13 +399,57 @@ function formatTime(seconds) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function showGameOver(message) {
-  if (lastGameOverText === message && !gameOverOverlay.classList.contains("hidden")) return;
-  lastGameOverText = message;
+function generateRoomCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
 
-  gameOverTitle.textContent = "Game Over";
-  gameOverMessage.textContent = message;
-  gameOverOverlay.classList.remove("hidden");
+function cleanRoomCode(value) {
+  return value.trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function normalizePlayers(players) {
+  const result = emptyPlayers();
+
+  for (const player of turnOrder) {
+    const value = players[player];
+
+    if (value === true) {
+      result[player] = { name: player, sessionId: "old-slot" };
+    } else if (value && typeof value === "object") {
+      result[player] = value;
+    } else {
+      result[player] = null;
+    }
+  }
+
+  return result;
+}
+
+function getPlayerName(playerData) {
+  if (!playerData) return "";
+  if (playerData === true) return "joined";
+  return playerData.name || "joined";
+}
+
+function getJoinedCount(players) {
+  return turnOrder.filter(player => Boolean(getPlayerName(players[player]))).length;
+}
+
+async function copyRoomCode() {
+  if (!roomCode) return;
+  try {
+    await navigator.clipboard.writeText(roomCode);
+    copyRoomBtn.textContent = "Copied!";
+    setTimeout(() => copyRoomBtn.textContent = "Copy Room Code", 1200);
+  } catch (error) {
+    roomCodeCopy.select();
+    document.execCommand("copy");
+  }
 }
 
 function playSound(type) {
@@ -357,17 +494,21 @@ function isKing(piece) {
   return piece === "♔" || piece === "♚";
 }
 
+function getSquareName(row, col) {
+  return files[col] + (8 - row);
+}
+
 function createBoard() {
   board.innerHTML = "";
 
   let text = "Turn: " + currentTurn;
 
   if (myPlayer !== currentTurn && !gameOver) {
-    text += " | Waiting for your turn";
+    text += " | wait for your turn";
   }
 
   if (myPlayer === currentTurn && !gameOver) {
-    text += " | Your move";
+    text += " | your move";
   }
 
   if (!gameOver && !waitingPromotion) {
@@ -377,24 +518,18 @@ function createBoard() {
       gameOver = true;
 
       if (isKingInCheck(color)) {
-        const winner = color === "white" ? "Black Team" : "White Team";
-        winnerText = winner + " wins by checkmate!";
+        const winner = color === "white" ? "BLACK" : "WHITE";
+        text = winner + " WINS BY CHECKMATE!";
       } else {
-        winnerText = "Draw by stalemate!";
+        text = "STALEMATE!";
       }
 
-      text = winnerText;
       playSound("mate");
-      showGameOver(winnerText);
       saveGameState();
     } else {
       if (isKingInCheck("white")) text += " | White King is in CHECK!";
       if (isKingInCheck("black")) text += " | Black King is in CHECK!";
     }
-  }
-
-  if (gameOver && winnerText) {
-    text = winnerText;
   }
 
   turnText.textContent = text;
@@ -467,7 +602,7 @@ function handleClick(row, col) {
   if (gameOver || waitingPromotion) return;
 
   if (myPlayer !== currentTurn) {
-    alert("It is not your turn yet.");
+    alert("It is not your turn.");
     return;
   }
 
@@ -580,6 +715,7 @@ async function makeMove(row, col) {
   }
 
   moves.push(moveText);
+  gameClockStarted = true;
   updateHistory();
 
   playSound(capturedPiece !== "" ? "capture" : "move");
@@ -606,7 +742,7 @@ function showPromotion(row, col, color, moveText) {
   box.id = "promotionBox";
 
   const title = document.createElement("div");
-  title.textContent = "Choose promotion piece";
+  title.textContent = "Choose a piece";
   title.style.marginBottom = "10px";
   box.appendChild(title);
 
@@ -621,6 +757,7 @@ function showPromotion(row, col, color, moveText) {
     btn.onclick = async () => {
       pieces[row][col] = piece;
       moves.push(moveText + " promoted to " + piece);
+      gameClockStarted = true;
       updateHistory();
 
       waitingPromotion = false;
@@ -956,19 +1093,3 @@ function nextTurn() {
   const index = turnOrder.indexOf(currentTurn);
   currentTurn = turnOrder[(index + 1) % turnOrder.length];
 }
-
-restartBtn.addEventListener("click", async () => {
-  if (!roomRef) return;
-
-  const oldSnapshot = await get(roomRef);
-  const oldData = oldSnapshot.val();
-  const oldPlayers = normalizePlayers(oldData?.players || createEmptyPlayers());
-
-  const newState = createNewGameState();
-  newState.players = oldPlayers;
-
-  lastGameOverText = "";
-  gameOverOverlay.classList.add("hidden");
-
-  await set(roomRef, newState);
-});
