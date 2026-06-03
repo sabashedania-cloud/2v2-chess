@@ -68,6 +68,7 @@ let localUpdatingFromFirebase = false;
 let latestPlayers = {};
 let gameStarted = false;
 let gameClockStarted = false;
+let gameResult = null;
 
 let selectedPiece = null;
 let selectedRow = null;
@@ -120,6 +121,7 @@ function createNewGameState(creatorName = "") {
     gameOver: false,
     gameStarted: false,
     gameClockStarted: false,
+    gameResult: null,
     waitingPromotion: false,
     moves: [],
     enPassantTarget: null,
@@ -271,6 +273,7 @@ function listenRoom() {
     gameOver = data.gameOver || false;
     gameStarted = data.gameStarted || false;
     gameClockStarted = data.gameClockStarted || false;
+    gameResult = data.gameResult || null;
     waitingPromotion = data.waitingPromotion || false;
     moves = data.moves || [];
     castlingRights = data.castlingRights || createNewGameState().castlingRights;
@@ -344,6 +347,7 @@ async function saveGameState(extra = {}) {
     currentTurn,
     gameOver,
     gameStarted,
+    gameResult,
     waitingPromotion,
     moves,
     castlingRights,
@@ -374,6 +378,7 @@ function startTimer() {
       if (whiteTime <= 0) {
         whiteTime = 0;
         gameOver = true;
+        setGameResult("black", "Time win");
         turnText.textContent = "BLACK WINS ON TIME!";
         playSound("mate");
       }
@@ -382,6 +387,7 @@ function startTimer() {
       if (blackTime <= 0) {
         blackTime = 0;
         gameOver = true;
+        setGameResult("white", "Time win");
         turnText.textContent = "WHITE WINS ON TIME!";
         playSound("mate");
       }
@@ -391,6 +397,46 @@ function startTimer() {
     updateTimers();
     await saveGameState();
   }, 1000);
+}
+
+function setGameResult(winnerTeam, reason) {
+  const whitePlayers = {
+    White1: getPlayerName(latestPlayers.White1),
+    White2: getPlayerName(latestPlayers.White2)
+  };
+
+  const blackPlayers = {
+    Black1: getPlayerName(latestPlayers.Black1),
+    Black2: getPlayerName(latestPlayers.Black2)
+  };
+
+  if (winnerTeam === "draw") {
+    gameResult = {
+      finishedAt: Date.now(),
+      reason,
+      winnerTeam: "Draw",
+      loserTeam: "Draw",
+      winners: {},
+      losers: {},
+      summary: "Draw by " + reason
+    };
+    return;
+  }
+
+  const winnerLabel = winnerTeam === "white" ? "White Team" : "Black Team";
+  const loserLabel = winnerTeam === "white" ? "Black Team" : "White Team";
+  const winners = winnerTeam === "white" ? whitePlayers : blackPlayers;
+  const losers = winnerTeam === "white" ? blackPlayers : whitePlayers;
+
+  gameResult = {
+    finishedAt: Date.now(),
+    reason,
+    winnerTeam: winnerLabel,
+    loserTeam: loserLabel,
+    winners,
+    losers,
+    summary: winnerLabel + " won by " + reason
+  };
 }
 
 function updateTimers() {
@@ -524,8 +570,10 @@ function createBoard() {
 
       if (isKingInCheck(color)) {
         const winner = color === "white" ? "BLACK" : "WHITE";
+        setGameResult(color === "white" ? "black" : "white", "Checkmate");
         text = winner + " WINS BY CHECKMATE!";
       } else {
+        setGameResult("draw", "Stalemate");
         text = "STALEMATE!";
       }
 
