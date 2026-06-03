@@ -425,6 +425,33 @@ function startTimer() {
   }, 1000);
 }
 
+
+async function finishGameIfNeeded() {
+  if (gameOver || waitingPromotion) return false;
+
+  const color = getTurnColor();
+
+  if (hasAnyLegalMove(color)) {
+    return false;
+  }
+
+  gameOver = true;
+
+  if (isKingInCheck(color)) {
+    const winnerTeam = color === "white" ? "black" : "white";
+    setGameResult(winnerTeam, "Checkmate");
+    turnText.textContent = (winnerTeam === "white" ? "WHITE" : "BLACK") + " WINS BY CHECKMATE!";
+  } else {
+    setGameResult("draw", "Stalemate");
+    turnText.textContent = "STALEMATE!";
+  }
+
+  playSound("mate");
+  await saveGameState({ gameOver: true, gameResult });
+  handleGameOverPopup();
+  return true;
+}
+
 function setGameResult(winnerTeam, reason) {
   const whitePlayers = {
     White1: getPlayerName(latestPlayers.White1),
@@ -906,7 +933,9 @@ async function makeMove(row, col) {
 
   nextTurn();
 
-  if (!gameOver && isKingInCheck(getTurnColor())) {
+  const finished = await finishGameIfNeeded();
+
+  if (!finished && !gameOver && isKingInCheck(getTurnColor())) {
     playSound("check");
   }
 
@@ -950,7 +979,9 @@ function showPromotion(row, col, color, moveText) {
       playSound("move");
       nextTurn();
 
-      if (!gameOver && isKingInCheck(getTurnColor())) {
+      const finished = await finishGameIfNeeded();
+
+      if (!finished && !gameOver && isKingInCheck(getTurnColor())) {
         playSound("check");
       }
 
