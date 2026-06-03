@@ -399,3 +399,191 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+.admin-toolbar {
+  width: min(980px, 94vw);
+  margin: 12px auto;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-link {
+  display: inline-block;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: white;
+  color: black;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.admin-summary {
+  width: min(980px, 94vw);
+  margin: 14px auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.admin-stat {
+  background: #111;
+  border: 2px solid white;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.admin-rooms {
+  width: min(980px, 94vw);
+  margin: 15px auto 35px;
+  display: grid;
+  gap: 14px;
+}
+
+.empty-admin {
+  background: #111;
+  border: 2px dashed #aaa;
+  border-radius: 12px;
+  padding: 22px;
+  color: #ccc;
+  font-weight: bold;
+}
+
+.admin-room-card {
+  background: rgba(17, 17, 17, 0.96);
+  border: 2px solid #777;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: left;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.admin-room-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-room-code {
+  font-size: 24px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.admin-room-meta {
+  color: #bbb;
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+.admin-status {
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: bold;
+  background: #444;
+  color: white;
+}
+
+.admin-status.playing {
+  background: #55ff77;
+  color: #061006;
+}
+
+.admin-status.waiting {
+  background: #ffe082;
+  color: #111;
+}
+
+.admin-status.finished {
+  background: #ff7777;
+  color: #111;
+}
+
+.admin-room-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 14px 0;
+  color: #ddd;
+}
+
+.admin-room-info span {
+  background: #222;
+  border: 1px solid #555;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.admin-player-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.admin-player {
+  border: 2px solid #555;
+  border-radius: 10px;
+  padding: 10px;
+  background: #171717;
+  text-align: center;
+  min-height: 72px;
+}
+
+.joined-admin-player {
+  border-color: #55ff77;
+}
+
+.active-admin-player {
+  background: linear-gradient(135deg, #ffe082, #ff9f43);
+  border-color: #ffd54f;
+  color: #111;
+}
+
+.admin-player-slot {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.admin-player-name {
+  margin-top: 5px;
+  font-size: 18px;
+  font-weight: bold;
+  word-break: break-word;
+}
+
+.admin-player-time {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #aaa;
+}
+
+.active-admin-player .admin-player-time {
+  color: #222;
+}
+
+.admin-actions {
+  margin-top: 12px;
+  text-align: right;
+}
+
+.danger-btn {
+  background: #ff5c5c;
+  color: #111;
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .admin-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-player-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
