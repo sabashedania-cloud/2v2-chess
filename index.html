@@ -16,14 +16,16 @@
     <label>Your Name</label>
     <input id="nameInput" type="text" placeholder="Enter your name">
 
-    <label>Time Control</label>
-    <select id="timeSelect">
-      <option value="5">5 minutes</option>
-      <option value="10" selected>10 minutes</option>
-      <option value="15">15 minutes</option>
-      <option value="20">20 minutes</option>
-      <option value="30">30 minutes</option>
-    </select>
+    <div id="creatorTimeBox" class="creator-time-box">
+      <label>Time Control (only room creator chooses)</label>
+      <select id="timeSelect">
+        <option value="5">5 minutes</option>
+        <option value="10" selected>10 minutes</option>
+        <option value="15">15 minutes</option>
+        <option value="20">20 minutes</option>
+        <option value="30">30 minutes</option>
+      </select>
+    </div>
 
     <div class="room-actions">
       <button id="createRoomBtn">Create Room</button>
@@ -57,6 +59,7 @@
       <p id="roomText">Room: -</p>
       <p id="playerText">You are: -</p>
       <p id="turnText">Waiting for players...</p>
+      <p id="roomTimeText">Time: -</p>
     </div>
 
     <div id="copyBox">
@@ -98,7 +101,9 @@
   <div id="gameOverModal" class="modal hidden">
     <div class="modal-card">
       <h2 id="gameOverTitle">Game Over</h2>
+      <div id="winnerImage" class="winner-image">🏆</div>
       <p id="gameOverMessage">Result</p>
+      <div id="gameOverTeams" class="game-over-teams"></div>
       <button id="newGameBtn">New Game</button>
     </div>
   </div>
