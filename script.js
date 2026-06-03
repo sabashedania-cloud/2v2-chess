@@ -36,6 +36,7 @@ const joinedCountText = document.getElementById("joinedCountText");
 const nameInput = document.getElementById("nameInput");
 const roomInput = document.getElementById("roomInput");
 const timeSelect = document.getElementById("timeSelect");
+const creatorTimeBox = document.getElementById("creatorTimeBox");
 const createRoomBtn = document.getElementById("createRoomBtn");
 const loadRoomBtn = document.getElementById("loadRoomBtn");
 const slotPanel = document.getElementById("slotPanel");
@@ -51,9 +52,12 @@ const whiteTimerEl = document.getElementById("whiteTimer");
 const blackTimerEl = document.getElementById("blackTimer");
 const roomText = document.getElementById("roomText");
 const playerText = document.getElementById("playerText");
+const roomTimeText = document.getElementById("roomTimeText");
 const gameOverModal = document.getElementById("gameOverModal");
 const gameOverTitle = document.getElementById("gameOverTitle");
 const gameOverMessage = document.getElementById("gameOverMessage");
+const winnerImage = document.getElementById("winnerImage");
+const gameOverTeams = document.getElementById("gameOverTeams");
 const newGameBtn = document.getElementById("newGameBtn");
 
 const playerStatusEls = {
@@ -161,6 +165,7 @@ slotButtons.forEach(btn => btn.addEventListener("click", () => claimSlot(btn.dat
 
 async function createRoom() {
   myName = nameInput.value.trim();
+  if (creatorTimeBox) creatorTimeBox.classList.remove("hidden");
   if (myName.length < 2) {
     alert("Enter your name first.");
     return;
@@ -192,6 +197,7 @@ async function createRoom() {
 
 async function loadRoom() {
   myName = nameInput.value.trim();
+  if (creatorTimeBox) creatorTimeBox.classList.add("hidden");
   const code = cleanRoomCode(roomInput.value);
 
   if (myName.length < 2) {
@@ -291,6 +297,8 @@ function listenRoom() {
     gameResult = data.gameResult || null;
     timeLimitMinutes = normalizeTimeMinutes(data.timeLimitMinutes || 10);
     timeLimitSeconds = Number(data.timeLimitSeconds || timeLimitMinutes * 60);
+    if (timeSelect) timeSelect.value = String(timeLimitMinutes);
+    if (roomTimeText) roomTimeText.textContent = "Time: " + timeLimitMinutes + " minutes";
     waitingPromotion = data.waitingPromotion || false;
     moves = data.moves || [];
     castlingRights = data.castlingRights || createNewGameState().castlingRights;
@@ -572,13 +580,42 @@ function handleGameOverPopup() {
 
   lastShownResultId = resultId;
   const isDraw = gameResult.winnerTeam === "Draw";
-  gameOverTitle.textContent = isDraw ? "Game Draw" : gameResult.winnerTeam + " Wins!";
+  const winnerNames = namesFromSlots(gameResult.winners);
+  const loserNames = namesFromSlots(gameResult.losers);
+  const reason = gameResult.reason || "Unknown";
 
-  const winners = namesFromSlots(gameResult.winners);
-  const losers = namesFromSlots(gameResult.losers);
-  gameOverMessage.textContent = isDraw
-    ? "Reason: " + (gameResult.reason || "Draw")
-    : "Winner: " + (winners || gameResult.winnerTeam) + " | Loser: " + (losers || gameResult.loserTeam) + " | Reason: " + (gameResult.reason || "Unknown");
+  if (isDraw) {
+    gameOverTitle.textContent = "Game Draw";
+    if (winnerImage) winnerImage.textContent = "🤝";
+    gameOverMessage.textContent = "The game ended in a draw. Reason: " + reason;
+    if (gameOverTeams) {
+      gameOverTeams.innerHTML = `
+        <div class="team-result draw-result-card">
+          <div class="team-result-title">Draw</div>
+          <div class="team-result-names">No winner / no loser</div>
+        </div>
+      `;
+    }
+  } else {
+    const isWhiteWinner = gameResult.winnerTeam === "White Team";
+    gameOverTitle.textContent = gameResult.winnerTeam + " Wins!";
+    if (winnerImage) winnerImage.textContent = isWhiteWinner ? "🏆 ♔" : "🏆 ♚";
+    gameOverMessage.textContent = "Victory by " + reason;
+    if (gameOverTeams) {
+      gameOverTeams.innerHTML = `
+        <div class="team-result winner-result-card">
+          <div class="team-result-title">Winner</div>
+          <div class="team-result-team">${escapeHtml(gameResult.winnerTeam || "Unknown")}</div>
+          <div class="team-result-names">${escapeHtml(winnerNames || "-")}</div>
+        </div>
+        <div class="team-result loser-result-card">
+          <div class="team-result-title">Loser</div>
+          <div class="team-result-team">${escapeHtml(gameResult.loserTeam || "Unknown")}</div>
+          <div class="team-result-names">${escapeHtml(loserNames || "-")}</div>
+        </div>
+      `;
+    }
+  }
 
   gameOverModal.classList.remove("hidden");
 }
@@ -586,6 +623,15 @@ function handleGameOverPopup() {
 function namesFromSlots(slots) {
   if (!slots) return "";
   return Object.values(slots).filter(Boolean).join(" + ");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function playSound(type) {
